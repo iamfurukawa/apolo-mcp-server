@@ -6,7 +6,6 @@ optimized for AI/LLM applications with comprehensive metadata tracking.
 
 from typing import Dict, Any, List, Optional
 from ..rag.ingestion_pipeline import IngestionPipeline
-from fastmcp import tool
 
 # Global pipeline instance
 _pipeline = None
@@ -19,7 +18,6 @@ def get_pipeline():
     return _pipeline
 
 
-@tool()
 async def create_document(content: str, metadata: Dict[str, Any]) -> str:
     """
     Create a new document in the RAG system.
@@ -38,7 +36,6 @@ async def create_document(content: str, metadata: Dict[str, Any]) -> str:
     return pipeline.process_document(content, metadata)
 
 
-@tool()
 async def search_documents(
     query: str, 
     limit: int = 5,
@@ -73,7 +70,6 @@ async def search_documents(
     return pipeline.search_similar(query, limit, filter_conditions)
 
 
-@tool()
 async def get_document_by_id(document_id: str) -> dict:
     """
     Retrieve a complete document by its unique identifier with all chunks grouped.
