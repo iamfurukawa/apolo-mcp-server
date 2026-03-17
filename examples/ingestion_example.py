@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from mcp_rag_server.ingestion.ingestion_pipeline import IngestionPipeline
+from mcp_rag_server.rag.ingestion_pipeline import IngestionPipeline
 
 load_dotenv()
 

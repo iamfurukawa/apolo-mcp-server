@@ -1,1 +1,1 @@
-"""RAG module for MCP RAG Server."""
+"""Ingestion module for MCP RAG Server."""
