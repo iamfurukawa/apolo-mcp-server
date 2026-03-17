@@ -10,7 +10,7 @@ class SimpleChunker:
     def create_chunks(self, text_content: str) -> List[str]:
         """Create simple chunks by paragraphs with token limit."""
         paragraphs = [
-            p.strip() for p in text_content.split("\n") if len(p.strip().split()) > 10
+            p.strip() for p in text_content.split("\n") if p.strip()
         ]
         
         if not paragraphs:
