@@ -108,6 +108,17 @@ def main():
         print(f"  Title: {result['payload'].get('title', 'N/A')}")
         print(f"  Content: {result['payload']['content'][:100]}...")
         print()
+    
+    # Get document by ID example
+    print("\n=== GET DOCUMENT BY ID ===")
+    doc_id_to_get = doc_id  # Use the first document ID
+    document = pipeline.get_document_by_id(doc_id_to_get)
+    print(f"Retrieved document: {doc_id_to_get}")
+    print(f"Document metadata: {document.get('title', 'N/A')}")
+    print(f"Chunk count: {document.get('chunk_count', 0)}")
+    print(f"Total tokens: {document.get('total_tokens', 0)}")
+    print(f"First chunk preview: {document['chunks'][0]['content'][:100]}...")
+    print()
 
 if __name__ == "__main__":
     main()

@@ -226,3 +226,73 @@ class IngestionPipeline:
         
         return results
 
+    def get_document_by_id(self, document_id: str) -> dict:
+        """
+        Retrieve a complete document by its unique identifier with all chunks grouped.
+        """
+        try:
+            result = self.qdrant.scroll(
+                collection_name=self.collection_name,
+                scroll_filter=models.Filter(
+                    must=[
+                        models.FieldCondition(
+                            key="document_id",
+                            match=models.MatchValue(value=document_id)
+                        )
+                    ]
+                ),
+                with_payload=True
+            )
+            
+            if not result[0]:
+                return {
+                    "error": f"Document {document_id} not found",
+                    "error_code": "DOCUMENT_NOT_FOUND",
+                    "suggestion": "Verify the document ID and try again"
+                }
+            
+            # Extract document-level metadata from first chunk
+            first_chunk = result[0][0]
+            document_metadata = {
+                k: v for k, v in first_chunk.payload.items() 
+                if k not in ["document_id", "chunk_index", "content", "score", "vector_hash", "token_count", "language", "domain", "source", "last_accessed", "ingestion_date"]
+            }
+            
+            # Group all chunks under the document
+            chunks = []
+            total_tokens = 0
+            
+            for i, point in enumerate(result[0]):
+                chunk_data = {
+                    "chunk_id": point.id,
+                    "chunk_index": point.payload.get("chunk_index", i),
+                    "content": point.payload.get("content", ""),
+                    "score": point.payload.get("score"),
+                    "vector_hash": point.payload.get("vector_hash"),
+                    "token_count": point.payload.get("token_count", len(point.payload.get("content", "")) // 4),
+                    "metadata": {
+                        k: v for k, v in point.payload.items() 
+                        if k not in ["document_id", "chunk_index", "content", "score", "vector_hash", "token_count", "language", "domain", "source", "last_accessed", "ingestion_date"]
+                    }
+                }
+                chunks.append(chunk_data)
+                total_tokens += chunk_data["token_count"]
+            
+            # Build complete document object
+            document = {
+                "document_id": document_id,
+                "chunk_count": len(result[0]),
+                "total_tokens": total_tokens,
+                "chunks": chunks,
+                **document_metadata
+            }
+            
+            return document
+            
+        except Exception as e:
+            return {
+                "error": str(e),
+                "error_code": "RETRIEVAL_ERROR",
+                "suggestion": "Check Qdrant connection and collection name"
+            }
+
