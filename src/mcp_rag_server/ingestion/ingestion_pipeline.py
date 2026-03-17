@@ -2,6 +2,7 @@
 
 import os
 import uuid
+from datetime import datetime
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 from qdrant_client import QdrantClient, models
@@ -66,16 +67,29 @@ class IngestionPipeline:
         )
         
         print(f"Created multi-vector collection: {self.collection_name}")
+        
+        # Create default indexes for common fields
+        default_fields = ["source", "document_id", "last_accessed", "active"]
+        self.create_indexes(default_fields)
 
     def create_indexes(self, fields: List[str]) -> None:
         """Create payload indexes for better filtering performance."""
         for field_name in fields:
             try:
-                self.qdrant.create_payload_index(
-                    collection_name=self.collection_name,
-                    field_name=field_name,
-                    field_schema=models.PayloadSchemaType.KEYWORD,
-                )
+                if field_name == "last_accessed":
+                    # Create datetime index for last_accessed
+                    self.qdrant.create_payload_index(
+                        collection_name=self.collection_name,
+                        field_name=field_name,
+                        field_schema=models.PayloadSchemaType.DATETIME,
+                    )
+                else:
+                    # Create keyword index for other fields
+                    self.qdrant.create_payload_index(
+                        collection_name=self.collection_name,
+                        field_name=field_name,
+                        field_schema=models.PayloadSchemaType.KEYWORD,
+                    )
                 print(f"Created index for field: {field_name}")
             except Exception as e:
                 print(f"Failed to create index for {field_name}: {e}")
@@ -107,11 +121,19 @@ class IngestionPipeline:
             point_id = str(uuid.uuid4())
             
             point_metadata = {
+                # User metadata (preserve original)
                 **metadata,
+                # Standard metadata (don't override user fields)
                 "document_id": document_id,
+                "ingestion_date": datetime.now().isoformat(),
                 "chunk_index": i,
                 "chunk_count": len(chunks),
-                "content": chunk
+                "content": chunk,
+                # Status metadata
+                "active": metadata.get("active", True),  # Default to True if not specified
+                # Technical metadata
+                "embedding_model": "all-MiniLM-L6-v2",
+                "vector_size": self.vector_size
             }
 
             point = models.PointStruct(
@@ -149,6 +171,24 @@ class IngestionPipeline:
         query_sparse = self.embeddings.create_sparse_embeddings([query])[0]
         query_colbert = self.embeddings.create_colbert_embeddings([query])[0]
         
+        # Build filter conditions - always include active=True by default
+        must_conditions = [
+            models.FieldCondition(
+                key="active",
+                match=models.MatchValue(value=True)
+            )
+        ]
+        
+        # Add user filter conditions if provided
+        if filter_conditions:
+            for key, value in filter_conditions.items():
+                must_conditions.append(
+                    models.FieldCondition(
+                        key=key,
+                        match=models.MatchValue(value=value)
+                    )
+                )
+        
         search_result = self.qdrant.query_points(
             collection_name=self.collection_name,
             prefetch=[
@@ -164,14 +204,7 @@ class IngestionPipeline:
             query=query_colbert,
             using="colbert",
             limit=limit,
-            query_filter=models.Filter(
-                must=[
-                    models.FieldCondition(
-                        key=key,
-                        match=models.MatchValue(value=value)
-                    ) for key, value in (filter_conditions or {}).items()
-                ]
-            ) if filter_conditions else None,
+            query_filter=models.Filter(must=must_conditions),
         ).points
         
         results = []
@@ -181,5 +214,15 @@ class IngestionPipeline:
                 "score": hit.score,
                 "payload": hit.payload
             })
+            
+            # Update last_accessed timestamp (preserve existing payload)
+            current_payload = hit.payload
+            current_payload["last_accessed"] = datetime.now().isoformat()
+            self.qdrant.overwrite_payload(
+                collection_name=self.collection_name,
+                payload=current_payload,
+                points=[hit.id]
+            )
         
         return results
+

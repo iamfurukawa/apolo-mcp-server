@@ -53,7 +53,8 @@ def main():
         "title": "AI Overview",
         "category": "technology",
         "author": "Example Author",
-        "created_date": "2024-01-01"
+        "created_date": "2024-01-01",
+        "active": True  # Document is active
     }
     
     doc_id = pipeline.process_document(sample_text, metadata)
@@ -67,21 +68,18 @@ def main():
     computers and human language. It involves teaching computers to understand, interpret, and 
     generate human language in a way that is valuable.
     
-    ## Applications
-    
-    Common NLP applications include:
-    - Machine translation
-    - Sentiment analysis
-    - Chatbots and virtual assistants
-    - Text summarization
-    - Information extraction
+    ## Sample metadata
     """
     
     metadata_2 = {
         "title": "NLP Guide",
         "category": "technology",
         "author": "Example Author",
-        "created_date": "2024-01-02"
+        "created_date": "2024-01-02",
+        "source": "internal_docs",
+        "source_id": "doc_002",
+        "file_name": "nlp_guide.md",
+        "active": True  # Document is active
     }
     
     doc_id_2 = pipeline.process_document(another_text, metadata_2)
